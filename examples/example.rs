@@ -1,6 +1,9 @@
-use kafka_rebalancer::*;
+// use kafka_rebalancer::*;
 
-use kafka_rebalancer::models::{Broker, ResourceCapacity, Topic, Partition, Replica, ResourceUsage};
+use kafka_rebalancer::models::{Broker, ResourceCapacity, Topic, Partition, Replica, ResourceUsage, ClusterModel};
+use kafka_rebalancer::goals::{ReplicaDistributionGoal, Goal};
+use kafka_rebalancer::{Rebalancer, BalancingConstraints};
+use kafka_rebalancer::{Action, RebalancePlan};
 
 fn main() {
     println!("Kafka Partition Rebalancer - Example Usage\n");
@@ -10,12 +13,12 @@ fn main() {
 
     // Create goals
     let goals: Vec<Box<dyn Goal>> = vec![
-        // Box::new(goals::RackAwareGoal),
-        // Box::new(goals::DiskCapacityGoal { threshold: 0.8 }),
-        Box::new(goals::ReplicaDistributionGoal {
+        // Box::new(RackAwareGoal),
+        // Box::new(DiskCapacityGoal { threshold: 0.8 }),
+        Box::new(ReplicaDistributionGoal {
             allowed_variance: 0.1,
         }),
-        // Box::new(goals::LeaderDistributionGoal {
+        // Box::new(LeaderDistributionGoal {
         //     allowed_variance: 0.1,
         // }),
     ];
@@ -84,7 +87,7 @@ fn main() {
             println!("\n=== Simulated Final State (after applying plan) ===");
             let mut final_cluster = cluster.clone();
             for action in &plan.actions {
-                if let actions::Action::MoveReplica { topic, partition, from_broker, to_broker, .. } = action {
+                if let Action::MoveReplica { topic, partition, from_broker, to_broker, .. } = action {
                     if let Some(updated) = final_cluster.simulate_replica_move(
                         topic,
                         *partition,
@@ -328,12 +331,12 @@ fn print_cluster_tree(cluster: &ClusterModel) {
     println!();
 }
 
-fn print_partition_movements(plan: &actions::RebalancePlan) {
+fn print_partition_movements(plan: &RebalancePlan) {
     println!("\n=== Partition Movements ===");
 
     let mut move_actions: Vec<_> = plan.actions.iter()
         .filter_map(|action| {
-            if let actions::Action::MoveReplica { topic, partition, from_broker, to_broker, .. } = action {
+            if let Action::MoveReplica { topic, partition, from_broker, to_broker, .. } = action {
                 Some((topic, partition, from_broker, to_broker))
             } else {
                 None
