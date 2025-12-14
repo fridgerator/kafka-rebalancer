@@ -9,13 +9,13 @@ fn main() {
     // Create goals
     let goals: Vec<Box<dyn Goal>> = vec![
         // Box::new(goals::RackAwareGoal),
-        Box::new(goals::DiskCapacityGoal { threshold: 0.8 }),
+        // Box::new(goals::DiskCapacityGoal { threshold: 0.8 }),
         Box::new(goals::ReplicaDistributionGoal {
             allowed_variance: 0.1,
         }),
-        Box::new(goals::LeaderDistributionGoal {
-            allowed_variance: 0.1,
-        }),
+        // Box::new(goals::LeaderDistributionGoal {
+        //     allowed_variance: 0.1,
+        // }),
     ];
 
     // Create rebalancer
@@ -63,6 +63,9 @@ fn main() {
             if plan.actions.len() > 20 {
                 println!("... and {} more actions", plan.actions.len() - 20);
             }
+
+            // Show movements in compact format
+            print_partition_movements(&plan);
 
             // Show batched execution plan
             println!("\n=== Batched Execution (max 5 concurrent) ===");
@@ -230,6 +233,7 @@ fn create_sample_cluster() -> ClusterModel {
     println!("=== Initial Cluster State ===");
     print_replica_distribution(&cluster);
     print_rack_distribution(&cluster);
+    print_cluster_tree(&cluster);
 
     cluster
 }
@@ -294,5 +298,60 @@ fn print_rack_distribution(cluster: &ClusterModel) {
     } else {
         println!("\nTotal: {} rack violations", violation_count);
     }
+    println!();
+}
+
+fn print_cluster_tree(cluster: &ClusterModel) {
+    println!("Cluster Structure:");
+    for broker in cluster.brokers.values() {
+        let rack = broker.rack.as_deref().unwrap_or("unknown");
+        println!("Broker {} ({}):", broker.id, rack);
+
+        // Iterate through all partitions and find ones with replicas on this broker
+        for topic in cluster.topics.values() {
+            for partition in topic.partitions.values() {
+                for replica in &partition.replicas {
+                    if replica.broker_id == broker.id {
+                        println!(
+                            "  - {}/{} (leader: {})",
+                            partition.topic,
+                            partition.id,
+                            replica.is_leader
+                        );
+                    }
+                }
+            }
+        }
+    }
+    println!();
+}
+
+fn print_partition_movements(plan: &actions::RebalancePlan) {
+    println!("\n=== Partition Movements ===");
+
+    let mut move_actions: Vec<_> = plan.actions.iter()
+        .filter_map(|action| {
+            if let actions::Action::MoveReplica { topic, partition, from_broker, to_broker, .. } = action {
+                Some((topic, partition, from_broker, to_broker))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if move_actions.is_empty() {
+        println!("No partition movements");
+        return;
+    }
+
+    // Sort by topic, then partition for cleaner output
+    move_actions.sort_by(|a, b| {
+        a.0.cmp(b.0).then(a.1.cmp(b.1))
+    });
+
+    for (topic, partition, from_broker, to_broker) in move_actions {
+        println!("  {}/{}: {} -> {}", topic, partition, from_broker, to_broker);
+    }
+
     println!();
 }

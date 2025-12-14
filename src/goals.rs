@@ -524,15 +524,57 @@ impl ReplicaDistributionGoal {
             })
             .collect();
 
+        // Track brokers that host other partitions of the same topic
+        let brokers_with_topic_partitions: std::collections::HashSet<BrokerId> =
+            cluster
+                .topics
+                .get(topic)
+                .map(|t| {
+                    t.partitions
+                        .values()
+                        .flat_map(|p| p.replicas.iter().map(|r| r.broker_id))
+                        .collect()
+                })
+                .unwrap_or_default();
+
         // Get the replica being moved for resource checks
         let replica_to_move = partition
             .replicas
             .iter()
             .find(|r| r.broker_id == from_broker)?;
 
-        // Evaluate each underloaded broker
+        // First pass: Find brokers with no partitions of this topic, different rack, and capacity
         for &(broker_id, _) in underloaded {
             // Don't move to a broker that already has this partition
+            if existing_brokers.contains(&broker_id) {
+                continue;
+            }
+
+            // Prefer brokers that don't have any partitions of this topic
+            if brokers_with_topic_partitions.contains(&broker_id) {
+                continue;
+            }
+
+            // Check rack awareness and capacity
+            if let Some(broker) = cluster.get_broker(broker_id) {
+                // Prefer brokers in different racks (rack-aware placement)
+                if let Some(rack) = &broker.rack {
+                    if existing_racks.contains(rack) {
+                        continue; // Skip brokers in same rack
+                    }
+                }
+
+                // Check if broker can accommodate this replica
+                if !broker.can_accommodate(&replica_to_move.resource_usage) {
+                    continue;
+                }
+
+                return Some(broker_id);
+            }
+        }
+
+        // Second pass: Allow brokers with topic partitions, but still require different rack
+        for &(broker_id, _) in underloaded {
             if existing_brokers.contains(&broker_id) {
                 continue;
             }
@@ -555,8 +597,25 @@ impl ReplicaDistributionGoal {
             }
         }
 
-        // If no rack-aware option available, pick the most underloaded
-        // that can still accommodate the replica
+        // Third pass: Relax rack constraint, but still prefer no topic partitions
+        for &(broker_id, _) in underloaded {
+            if existing_brokers.contains(&broker_id) {
+                continue;
+            }
+
+            // Prefer brokers that don't have any partitions of this topic
+            if brokers_with_topic_partitions.contains(&broker_id) {
+                continue;
+            }
+
+            if let Some(broker) = cluster.get_broker(broker_id) {
+                if broker.can_accommodate(&replica_to_move.resource_usage) {
+                    return Some(broker_id);
+                }
+            }
+        }
+
+        // Final pass: Any underloaded broker that can accommodate the replica
         for &(broker_id, _) in underloaded {
             if existing_brokers.contains(&broker_id) {
                 continue;
