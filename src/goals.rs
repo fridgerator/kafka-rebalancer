@@ -1,4 +1,4 @@
-use crate::model::*;
+use crate::models::*;
 use crate::actions::Action;
 
 /// Priority level for goals

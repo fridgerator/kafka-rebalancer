@@ -1,7 +1,7 @@
 use crate::actions::{Action, ActionOrderingStrategy, RebalancePlan};
 use crate::constraints::BalancingConstraints;
 use crate::goals::{Goal, GoalPriority, GoalViolation};
-use crate::model::ClusterModel;
+use crate::models::ClusterModel;
 use crate::RebalancerError;
 use std::collections::HashMap;
 
@@ -259,7 +259,7 @@ impl Default for OptimizerBuilder {
 mod tests {
     use super::*;
     use crate::goals::*;
-    use crate::model::*;
+    use crate::models::*;
 
     #[test]
     fn test_optimizer_creation() {

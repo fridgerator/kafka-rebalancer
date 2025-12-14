@@ -1,4 +1,4 @@
-use crate::model::BrokerId;
+use crate::models::BrokerId;
 use chrono::Timelike;
 use chrono::Datelike;
 use std::collections::HashSet;

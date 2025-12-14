@@ -1,5 +1,7 @@
 use kafka_rebalancer::*;
 
+use kafka_rebalancer::models::{Broker, ResourceCapacity, Topic, Partition, Replica, ResourceUsage};
+
 fn main() {
     println!("Kafka Partition Rebalancer - Example Usage\n");
 
@@ -138,10 +140,10 @@ fn create_sample_cluster() -> ClusterModel {
             3 | 4 => "rack-2".to_string(),
             _ => format!("rack-{}", i % 3),
         };
-        let broker = model::Broker::new(
+        let broker = Broker::new(
             i,
             Some(rack),
-            model::ResourceCapacity {
+            ResourceCapacity {
                 cpu: 16.0,
                 disk_mb: 1_000_000, // 1 TB
                 network_in_mbps: 1000.0,
@@ -158,7 +160,7 @@ fn create_sample_cluster() -> ClusterModel {
     
     for topic_idx in 0..5 {
         let topic_name = format!("topic-{}", topic_idx);
-        let mut topic = model::Topic {
+        let mut topic = Topic {
             name: topic_name.clone(),
             partitions: std::collections::HashMap::new(),
             replication_factor: 3,
@@ -179,15 +181,15 @@ fn create_sample_cluster() -> ClusterModel {
                 (1, 2, 4)
             };
             
-            let partition = model::Partition {
+            let partition = Partition {
                 topic: topic_name.clone(),
                 id: partition_idx,
                 replicas: vec![
-                    model::Replica {
+                    Replica {
                         broker_id: broker1,
                         is_leader: true,
                         is_in_sync: true,
-                        resource_usage: model::ResourceUsage {
+                        resource_usage: ResourceUsage {
                             cpu: 0.5,
                             disk_mb: 10_000,
                             network_in_mbps: 10.0,
@@ -195,11 +197,11 @@ fn create_sample_cluster() -> ClusterModel {
                         },
                         size_mb: 10_000,
                     },
-                    model::Replica {
+                    Replica {
                         broker_id: broker2,
                         is_leader: false,
                         is_in_sync: true,
-                        resource_usage: model::ResourceUsage {
+                        resource_usage: ResourceUsage {
                             cpu: 0.2,
                             disk_mb: 10_000,
                             network_in_mbps: 10.0,
@@ -207,11 +209,11 @@ fn create_sample_cluster() -> ClusterModel {
                         },
                         size_mb: 10_000,
                     },
-                    model::Replica {
+                    Replica {
                         broker_id: broker3,
                         is_leader: false,
                         is_in_sync: true,
-                        resource_usage: model::ResourceUsage {
+                        resource_usage: ResourceUsage {
                             cpu: 0.2,
                             disk_mb: 10_000,
                             network_in_mbps: 10.0,

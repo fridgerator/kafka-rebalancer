@@ -1,13 +1,13 @@
 // Kafka Partition Rebalancer Library
 // A Rust implementation inspired by LinkedIn's Cruise Control
 
-pub mod model;
+pub mod models;
 pub mod goals;
 pub mod optimizer;
 pub mod actions;
 pub mod constraints;
 
-pub use model::{ClusterModel, Broker, Partition, Replica};
+pub use models::{ClusterModel, Broker, Partition, Replica};
 pub use goals::{Goal, GoalViolation, OptimizationResult};
 pub use optimizer::Optimizer;
 pub use actions::{Action, RebalancePlan};
